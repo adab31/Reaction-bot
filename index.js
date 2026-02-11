@@ -14,12 +14,15 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ]
 });
 
+// 🔥 Multiple emojis
 const emojis = ["🔥", "😎", "😂", "💯"];
 
+// 🔥 React on every message
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
@@ -27,5 +30,18 @@ client.on("messageCreate", async (message) => {
   await message.react(randomEmoji);
 });
 
+// 📢 NOTIFICATION CHANNEL ID YAHAN DAALO
+const notificationChannelId = "PASTE_CHANNEL_ID_HERE";
+
+// 👋 When member joins
+client.on("guildMemberAdd", (member) => {
+  const channel = member.guild.channels.cache.get(notificationChannelId);
+
+  if (channel) {
+    channel.send(`🎉 Welcome ${member.user} to the server!`);
+  }
+});
+
 client.login(process.env.TOKEN);
+
 
