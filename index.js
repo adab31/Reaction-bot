@@ -88,6 +88,8 @@ client.once("ready", () => {
 
 // ================= CUSTOM USER REACT SYSTEM =================
 
+let reactEnabled = true; // initially ON
+
 const userReactions = {
   "1414100097590890588": ["🔥", "😎", "❤️"],   // User 1
   "1464583967385714854": ["💀", "😂", "🐷"],   // User 2
@@ -102,6 +104,17 @@ client.on("messageCreate", async (message) => {
 
   if (!message.guild) return;
   if (message.author.bot) return;
+
+  // --- Toggle command ---
+if (message.content.toLowerCase() === "!togglereacts") {
+    reactEnabled = !reactEnabled; // toggle true <-> false
+    message.channel.send(`Reacts are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`);
+    return; // toggle command execute hone ke baad react code skip
+}
+
+  // --- Agar toggle OFF hai, react mat karo ---
+if (!reactEnabled) return;
+
 
   const emojis = userReactions[message.author.id];
   if (!emojis) return; // Agar user list me nahi hai to ignore
