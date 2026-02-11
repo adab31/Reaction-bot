@@ -46,7 +46,7 @@ client.on("messageCreate", async (message) => {
 
 // ⏰ PRO Reminder System
 client.on("messageCreate", (message) => {
-  if (!message.content.startsWith("!remind")) return;
+  if (!message.content.startsWith("?remind")) return;
   if (message.author.bot) return;
 
   const args = message.content.split(" ");
@@ -54,7 +54,7 @@ client.on("messageCreate", (message) => {
   const text = args.slice(2).join(" ");
 
   if (!timeInput || !text) {
-    return message.reply("Format: !remind 10s hello");
+    return message.reply("Format: ?remind 10s hello");
   }
 
   const timeValue = parseInt(timeInput);
@@ -69,7 +69,7 @@ client.on("messageCreate", (message) => {
   } else if (timeUnit === "h") {
     milliseconds = timeValue * 3600000;
   } else {
-    return message.reply("Use s (seconds), m (minutes), h (hours)\nExample: !remind 5m hello");
+    return message.reply("Use s (seconds), m (minutes), h (hours)\nExample: ?remind 5m hello");
   }
 
   message.reply(`⏳ Reminder set for ${timeInput}`);
