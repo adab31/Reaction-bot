@@ -88,14 +88,7 @@ client.once("ready", () => {
 
 // ================= CUSTOM USER REACT SYSTEM =================
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-});
-
+client.on("messageCreate", async (message) => {
 // Toggle feature
 let reactEnabled = true; // initially ON
 
