@@ -88,48 +88,70 @@ client.once("ready", () => {
 
 // ================= CUSTOM USER REACT SYSTEM =================
 
+const { Client, GatewayIntentBits } = require('discord.js');
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
+
+// ======================= TOGGLE FEATURE =======================
 let reactEnabled = true; // initially ON
 
+// ======================= USER REACTIONS =======================
 const userReactions = {
-  "1414100097590890588": ["🔥", "😎", "❤️"],   // User 1
-  "1464583967385714854": ["💀", "😂", "🐷"],   // User 2
-  "1467125413967958018": ["❤️", "💦", "🌈"]        // User 3
+    "1414100097590890588": ["🔥", "😎", "❤️"],   // User 1
+    "1464583967385714854": ["💀", "😂", "🐷"],   // User 2
+    "1467125413967958018": ["❤️", "💦", "🌈"]    // User 3
 };
 
-// Cooldown system (react gap time)
+// ======================= CUSTOM COOLDOWN =======================
 const reactCooldown = new Map();
-const COOLDOWN_TIME = 20000; // 10 seconds (change kar sakte ho)
+const COOLDOWN_TIME = 20000; // 20 seconds per emoji
 
+// ======================= MESSAGE LISTENER =======================
 client.on("messageCreate", async (message) => {
+    if (!message.guild) return;
+    if (message.author.bot) return;
 
-  if (!message.guild) return;
-  if (message.author.bot) return;
+    // ----------------- TOGGLE COMMAND -----------------
+    if (message.content.toLowerCase() === "!togglereacts") {
+        reactEnabled = !reactEnabled;
+        message.channel.send(`Reacts are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`);
+        return; // command ke baad react code skip
+    }
 
-  // --- Toggle command ---
-if (message.content.toLowerCase() === "!togglereacts") {
-    reactEnabled = !reactEnabled; // toggle true <-> false
-    message.channel.send(`Reacts are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`);
-    return; // toggle command execute hone ke baad react code skip
-}
+    // ----------------- CHECK IF REACTS ENABLED -----------------
+    if (!reactEnabled) return;
 
-  // --- Agar toggle OFF hai, react mat karo ---
-if (!reactEnabled) return;
+    // ----------------- CHECK USER REACTIONS -----------------
+    const emojis = userReactions[message.author.id];
+    if (!emojis) return; // Agar user list me nahi hai
 
+    const now = Date.now();
 
-  const emojis = userReactions[message.author.id];
-  if (!emojis) return; // Agar user list me nahi hai to ignore
+    // ----------------- GET USER MAP FOR COOLDOWN -----------------
+    if (!reactCooldown.has(message.author.id)) {
+        reactCooldown.set(message.author.id, new Map());
+    }
+    const userMap = reactCooldown.get(message.author.id);
 
-  const now = Date.now();
-  const lastReact = reactCooldown.get(message.author.id);
+    // ----------------- LOOP THROUGH EMOJIS -----------------
+    for (const emoji of emojis) {
+        const lastReact = userMap.get(emoji);
 
-  if (lastReact && now - lastReact < COOLDOWN_TIME) return;
+        // Agar cooldown me hai to skip
+        if (lastReact && now - lastReact < COOLDOWN_TIME) continue;
 
-  reactCooldown.set(message.author.id, now);
-
-  for (const emoji of emojis) {
-    await message.react(emoji).catch(() => {});
-  }
-
+        try {
+            await message.react(emoji);
+            userMap.set(emoji, now); // update cooldown
+        } catch (err) {
+            console.error(`Couldn't react with ${emoji}:`, err);
+        }
+    }
 });
 
 
