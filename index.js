@@ -88,48 +88,57 @@ client.once("ready", () => {
 
 // ================= CUSTOM USER REACT SYSTEM =================
 
-client.on("messageCreate", async (message) => {
-// Toggle feature
+const { Client, GatewayIntentBits } = require('discord.js');
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
+
+// ======================= TOGGLE FEATURE =======================
 let reactEnabled = true; // initially ON
 
-// User reactions
+// ======================= USER REACTIONS =======================
 const userReactions = {
     "1414100097590890588": ["🔥", "😎", "❤️"],   // User 1
     "1464583967385714854": ["💀", "😂", "🐷"],   // User 2
     "1467125413967958018": ["❤️", "💦", "🌈"]    // User 3
 };
 
-// Custom cooldown per user per emoji
+// ======================= CUSTOM COOLDOWN =======================
 const reactCooldown = new Map();
 const COOLDOWN_TIME = 20000; // 20 seconds per emoji
 
+// ======================= MESSAGE LISTENER =======================
 client.on("messageCreate", async (message) => {
     if (!message.guild) return;
     if (message.author.bot) return;
 
-    // Toggle command
+    // ----------------- TOGGLE COMMAND -----------------
     if (message.content.toLowerCase() === "!togglereacts") {
         reactEnabled = !reactEnabled;
         message.channel.send(`Reacts are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`);
         return;
     }
 
-    // Check if reacts enabled
+    // ----------------- CHECK IF REACTS ENABLED -----------------
     if (!reactEnabled) return;
 
-    // Check user reactions
+    // ----------------- CHECK USER REACTIONS -----------------
     const emojis = userReactions[message.author.id];
     if (!emojis) return;
 
     const now = Date.now();
 
-    // Get user map for cooldown
+    // ----------------- GET USER MAP FOR COOLDOWN -----------------
     if (!reactCooldown.has(message.author.id)) {
         reactCooldown.set(message.author.id, new Map());
     }
     const userMap = reactCooldown.get(message.author.id);
 
-    // Loop through emojis
+    // ----------------- LOOP THROUGH EMOJIS -----------------
     for (const emoji of emojis) {
         const lastReact = userMap.get(emoji);
 
