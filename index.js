@@ -1,15 +1,22 @@
+const { Client, GatewayIntentBits } = require("discord.js");
 const express = require("express");
+require("dotenv").config();
+
+// ===== EXPRESS SERVER FOR RENDER =====
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
-  res.send("Bot is running");
+  res.send("Bot is running 🚀");
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Web server started"));
+app.listen(PORT, () => {
+  console.log(`🌐 Server running on port ${PORT}`);
+});
+// =====================================
 
-const { Client, GatewayIntentBits } = require("discord.js");
 
+// ===== DISCORD BOT =====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -19,32 +26,85 @@ const client = new Client({
   ]
 });
 
-// 🔥 Multiple reaction emojis
-const emojis = ["🔥", "😎", "😂", "💯"];
+// ====== SETTINGS ======
+const notificationChannelId = "1464603388196032626";
+const autoRoleId = "1464585250964242494";
+const badWords = ["suar", "gaandu", "bhadu", "kutte", "chutiya", "bsdk", "mc", "bc", "dalle"];
+// ======================
 
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-
-  const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-  await message.react(randomEmoji);
+client.once("ready", () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-// 📢 YAHAN APNA CHANNEL ID DAALO
-const notificationChannelId = "1464603388196032626";
 
-// 👋 JOIN MESSAGE
-client.on("guildMemberAdd", (member) => {
-  const channel = member.guild.channels.cache.get(notificationChannelId);
-  if (channel) {
-    channel.send(`🎉 Welcome ${member.user} to the server!`);
+// 🔥 Auto Fire React
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
+  await message.react("🐷");
+});
+
+
+// 👥 Member Count
+client.on("messageCreate", (message) => {
+  if (message.content === "!members") {
+    message.channel.send(`👥 Total Members: ${message.guild.memberCount}`);
   }
 });
 
-// 👋 LEAVE MESSAGE
+
+// 🚫 Bad Word Filter
+client.on("messageCreate", (message) => {
+  if (message.author.bot) return;
+
+  const msg = message.content.toLowerCase();
+  if (badWords.some(word => msg.includes(word))) {
+    message.delete();
+    message.channel.send(`${message.author}, bad words allowed nahi 🚫`);
+  }
+});
+
+
+// ⏰ Reminder
+client.on("messageCreate", (message) => {
+  if (!message.content.startsWith("!remind")) return;
+
+  const args = message.content.split(" ");
+  const time = parseInt(args[1]);
+  const text = args.slice(2).join(" ");
+
+  if (!time || !text) {
+    return message.reply("Format: !remind 10 message");
+  }
+
+  setTimeout(() => {
+    message.reply(`⏰ Reminder: ${text}`);
+  }, time * 1000);
+});
+
+
+// 🎉 Join
+client.on("guildMemberAdd", async (member) => {
+  const channel = member.guild.channels.cache.get(notificationChannelId);
+
+  if (channel) {
+    channel.send(`🎉 Welcome ${member.user.tag}!`);
+  }
+
+  const role = member.guild.roles.cache.get(autoRoleId);
+  if (role) {
+    await member.roles.add(role);
+  }
+
+  member.send(`Welcome to ${member.guild.name} 🎉`);
+});
+
+
+// 👋 Leave
 client.on("guildMemberRemove", (member) => {
   const channel = member.guild.channels.cache.get(notificationChannelId);
+
   if (channel) {
-    channel.send(`😢 ${member.user.tag} left the server.`);
+    channel.send(`👋 ${member.user.tag} left the server.`);
   }
 });
 
