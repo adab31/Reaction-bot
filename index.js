@@ -78,7 +78,7 @@ client.on("messageCreate", (message) => {
 
   setTimeout(() => {
     message.reply(`⏰ Reminder: ${text}`);
-  }, time * 1000);
+  }, time * 60000);
 });
 
 
