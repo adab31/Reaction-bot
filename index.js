@@ -26,6 +26,55 @@ const client = new Client({
   ]
 });
 
+
+let snipedMessages = {};
+client.on("messageDelete", (message) => {
+  if (!message.guild) return;
+  if (!message.author || message.author.bot) return;
+
+  snipedMessages[message.channel.id] = {
+    content: message.content,
+    author: message.author.tag,
+    avatar: message.author.displayAvatarURL({ dynamic: true }),
+    createdAt: message.createdAt
+  };
+});
+client.on("messageCreate", async (message) => {
+
+  if (message.author.bot) return;
+
+  const args = message.content.split(" ");
+  const command = args[0].toLowerCase();
+
+  // ===== SNIPE COMMAND YAHAN HOGA =====
+
+  if (command === "?snipe") {
+
+    const data = snipedMessages[message.channel.id];
+
+    if (!data) {
+      return message.reply("❌ Is channel me koi recent deleted message nahi mila.");
+    }
+
+    const embed = {
+      color: 0xff0000,
+      author: {
+        name: data.author,
+        icon_url: data.avatar
+      },
+      description: data.content || "No text",
+      footer: {
+        text: "Deleted message"
+      },
+      timestamp: new Date()
+    };
+
+    message.channel.send({ embeds: [embed] });
+  }
+
+});
+
+
 // ====== SETTINGS ======
 const notificationChannelId = "1464603388196032626";
 const autoRoleId = "1464585250964242494";
@@ -97,6 +146,97 @@ client.on("messageCreate", (message) => {
     message.delete();
     message.channel.send(`${message.author}, bad words allowed nahi 🚫`);
   }
+});
+
+
+// ================= MODERATION COMMANDS =================
+
+client.on("messageCreate", async (message) => {
+
+  if (!message.guild) return;
+  if (message.author.bot) return;
+
+  const args = message.content.split(" ");
+  const command = args[0].toLowerCase();
+
+  // ===== KICK =====
+  if (command === "?kick") {
+    if (!message.member.permissions.has("KickMembers"))
+      return message.reply("❌ Tumhe KickMembers permission nahi hai.");
+
+    const member = message.mentions.members.first();
+    if (!member) return message.reply("User mention karo.");
+
+    await member.kick();
+    message.channel.send(`✅ ${member.user.tag} ko kick kar diya.`);
+  }
+
+  // ===== BAN =====
+  if (command === "?ban") {
+    if (!message.member.permissions.has("BanMembers"))
+      return message.reply("❌ Tumhe BanMembers permission nahi hai.");
+
+    const member = message.mentions.members.first();
+    if (!member) return message.reply("User mention karo.");
+
+    await member.ban();
+    message.channel.send(`✅ ${member.user.tag} ko ban kar diya.`);
+  }
+
+  // ===== UNBAN =====
+  if (command === "?unban") {
+    if (!message.member.permissions.has("BanMembers"))
+      return message.reply("❌ Tumhe BanMembers permission nahi hai.");
+
+    const userId = args[1];
+    if (!userId) return message.reply("User ID do.");
+
+    await message.guild.members.unban(userId);
+    message.channel.send("✅ User unban ho gaya.");
+  }
+
+  // ===== CLEAR =====
+  if (command === "?clear") {
+    if (!message.member.permissions.has("ManageMessages"))
+      return message.reply("❌ Tumhe ManageMessages permission nahi hai.");
+
+    const amount = parseInt(args[1]);
+    if (!amount || amount > 100)
+      return message.reply("1-100 ke beech number likho.");
+
+    await message.channel.bulkDelete(amount, true);
+    message.channel.send(`✅ ${amount} messages delete kar diye.`);
+  }
+
+  // ===== TIMEOUT =====
+  if (command === "?timeout") {
+    if (!message.member.permissions.has("ModerateMembers"))
+      return message.reply("❌ Tumhe ModerateMembers permission nahi hai.");
+
+    const member = message.mentions.members.first();
+    const minutes = parseInt(args[2]);
+
+    if (!member) return message.reply("User mention karo.");
+    if (!minutes) return message.reply("Minutes likho.");
+
+    await member.timeout(minutes * 60 * 1000);
+    message.channel.send(`⏳ ${member.user.tag} ko ${minutes} minute timeout diya.`);
+  }
+
+  // ===== WARN =====
+  if (command === "?warn") {
+    if (!message.member.permissions.has("ManageMessages"))
+      return message.reply("❌ Tumhe permission nahi hai.");
+
+    const member = message.mentions.members.first();
+    if (!member) return message.reply("User mention karo.");
+
+    const reason = args.slice(2).join(" ") || "No reason";
+
+    member.send(`⚠ Tumhe warn diya gaya hai.\nReason: ${reason}`).catch(() => {});
+    message.channel.send(`⚠ ${member.user.tag} ko warn diya.`);
+  }
+
 });
 
 
