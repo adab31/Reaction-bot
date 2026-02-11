@@ -126,4 +126,27 @@ client.on("guildMemberRemove", (member) => {
   }
 });
 
+
+const ownerId = "1414100097590890588";
+
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
+
+  if (!message.content.startsWith("?say")) return;
+
+  if (message.author.id !== ownerId) {
+    return message.reply("❌ Tum is command ko use nahi kar sakte.");
+  }
+
+  const text = message.content.slice(5).trim();
+
+  if (!text) {
+    return message.reply("Message likho bhi.");
+  }
+
+  message.delete(); // tumhara original message delete karega
+  message.channel.send(text); // bot message bhejega
+});
+
+
 client.login(process.env.TOKEN);
