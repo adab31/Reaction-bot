@@ -86,25 +86,32 @@ client.once("ready", () => {
 });
 
 
-// 🔥 Auto Fire React
 // ================= CUSTOM USER REACT SYSTEM =================
+
+const userReactions = {
+  "1414100097590890588": ["🔥", "😎", "❤️"],   // User 1
+  "1464583967385714854": ["💀", "😂", "🐷"],   // User 2
+  "1467125413967958018": ["❤️", "💦", "🌈"]        // User 3
+};
+
+// Cooldown system (react gap time)
+const reactCooldown = new Map();
+const COOLDOWN_TIME = 10000; // 10 seconds (change kar sakte ho)
 
 client.on("messageCreate", async (message) => {
 
   if (!message.guild) return;
   if (message.author.bot) return;
 
-  // 🔥 YAHAN USERS + UNKE EMOJIS SET KARO
-
-  const userReactions = {
-    "1414100097590890588": ["🔥", "❤️","🤡"],          // User 1
-    "1467125413967958018": ["❤️", "🤡", "😂"],          // User 2
-    "1464583967385714854": ["❤️", "🤡", "🐷"]               // User 3
-  };
-
   const emojis = userReactions[message.author.id];
-
   if (!emojis) return; // Agar user list me nahi hai to ignore
+
+  const now = Date.now();
+  const lastReact = reactCooldown.get(message.author.id);
+
+  if (lastReact && now - lastReact < COOLDOWN_TIME) return;
+
+  reactCooldown.set(message.author.id, now);
 
   for (const emoji of emojis) {
     await message.react(emoji).catch(() => {});
