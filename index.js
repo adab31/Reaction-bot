@@ -96,7 +96,7 @@ const userReactions = {
 
 // Cooldown system (react gap time)
 const reactCooldown = new Map();
-const COOLDOWN_TIME = 10000; // 10 seconds (change kar sakte ho)
+const COOLDOWN_TIME = 20000; // 10 seconds (change kar sakte ho)
 
 client.on("messageCreate", async (message) => {
 
