@@ -88,7 +88,7 @@ client.once("ready", () => {
 
 // ================= CUSTOM USER REACT SYSTEM =================
 
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits } = require('node.js');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
