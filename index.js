@@ -44,6 +44,42 @@ client.on("messageCreate", async (message) => {
 });
 
 
+// ⏰ PRO Reminder System
+client.on("messageCreate", (message) => {
+  if (!message.content.startsWith("!remind")) return;
+  if (message.author.bot) return;
+
+  const args = message.content.split(" ");
+  const timeInput = args[1];
+  const text = args.slice(2).join(" ");
+
+  if (!timeInput || !text) {
+    return message.reply("Format: !remind 10s hello");
+  }
+
+  const timeValue = parseInt(timeInput);
+  const timeUnit = timeInput.slice(-1);
+
+  let milliseconds;
+
+  if (timeUnit === "s") {
+    milliseconds = timeValue * 1000;
+  } else if (timeUnit === "m") {
+    milliseconds = timeValue * 60000;
+  } else if (timeUnit === "h") {
+    milliseconds = timeValue * 3600000;
+  } else {
+    return message.reply("Use s (seconds), m (minutes), h (hours)\nExample: !remind 5m hello");
+  }
+
+  message.reply(`⏳ Reminder set for ${timeInput}`);
+
+  setTimeout(() => {
+    message.reply(`⏰ Reminder: ${text}`);
+  }, milliseconds);
+});
+
+
 // 👥 Member Count
 client.on("messageCreate", (message) => {
   if (message.content === "!members") {
@@ -61,24 +97,6 @@ client.on("messageCreate", (message) => {
     message.delete();
     message.channel.send(`${message.author}, bad words allowed nahi 🚫`);
   }
-});
-
-
-// ⏰ Reminder
-client.on("messageCreate", (message) => {
-  if (!message.content.startsWith("!remind")) return;
-
-  const args = message.content.split(" ");
-  const time = parseInt(args[1]);
-  const text = args.slice(2).join(" ");
-
-  if (!time || !text) {
-    return message.reply("Format: !remind 10 message");
-  }
-
-  setTimeout(() => {
-    message.reply(`⏰ Reminder: ${text}`);
-  }, time * 60000);
 });
 
 
