@@ -31,7 +31,7 @@ client.on("messageCreate", async (message) => {
 });
 
 // 📢 NOTIFICATION CHANNEL ID YAHAN DAALO
-const notificationChannelId = "PASTE_CHANNEL_ID_HERE";
+const notificationChannelId = "1464603388196032626";
 
 // 👋 When member joins
 client.on("guildMemberAdd", (member) => {
