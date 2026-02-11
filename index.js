@@ -19,10 +19,9 @@ const client = new Client({
   ]
 });
 
-// 🔥 Multiple emojis
+// 🔥 Multiple reaction emojis
 const emojis = ["🔥", "😎", "😂", "💯"];
 
-// 🔥 React on every message
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
@@ -30,18 +29,23 @@ client.on("messageCreate", async (message) => {
   await message.react(randomEmoji);
 });
 
-// 📢 NOTIFICATION CHANNEL ID YAHAN DAALO
+// 📢 YAHAN APNA CHANNEL ID DAALO
 const notificationChannelId = "1464603388196032626";
 
-// 👋 When member joins
+// 👋 JOIN MESSAGE
 client.on("guildMemberAdd", (member) => {
   const channel = member.guild.channels.cache.get(notificationChannelId);
-
   if (channel) {
     channel.send(`🎉 Welcome ${member.user} to the server!`);
   }
 });
 
+// 👋 LEAVE MESSAGE
+client.on("guildMemberRemove", (member) => {
+  const channel = member.guild.channels.cache.get(notificationChannelId);
+  if (channel) {
+    channel.send(`😢 ${member.user.tag} left the server.`);
+  }
+});
+
 client.login(process.env.TOKEN);
-
-
