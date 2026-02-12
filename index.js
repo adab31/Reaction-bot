@@ -28,7 +28,7 @@ const client = new Client({
 });
 
 // ================= SETTINGS =================
-const ownerId = "1414100097590890588";
+const ownerIds = ["1414100097590890588", "1452326637604573376"]; // ✅ Both owners
 const guildId = "1464580639620727030";
 const notificationChannelId = "1464603388196032626";
 const autoRoleId = "1464585250964242494";
@@ -68,7 +68,7 @@ const MAX_SNIPES = 10;
 client.on("messageCreate", async (message) => {
   if (!message.guild || message.author.bot) return;
 
-  const isOwner = message.author.id === ownerId;
+  const isOwner = ownerIds.includes(message.author.id);
 
   // ===== BAD WORD FILTER =====
   const msgLower = message.content.toLowerCase();
@@ -188,17 +188,15 @@ client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const userId = interaction.user.id;
   const command = interaction.commandName;
-  const isOwner = userId === ownerId;
+  const isOwner = ownerIds.includes(userId);
 
-  // ============ PERMISSION CHECK ============
   const hasPermission = isOwner || (commandPermissions[command]?.includes(userId));
 
-  // ====== OWNER-ONLY / PUBLIC CONTROL ======
   if (!hasPermission && !["help"].includes(command)) {
     return interaction.reply({ content: "❌ You don't have permission to use this command.", ephemeral: true });
   }
 
-  // ============ COMMANDS ============
+  // ===== COMMANDS =====
   if (command === "help") {
     const allowedCommands = isOwner ? allCommandsList : allCommandsList.filter(c => commandPermissions[c]?.includes(userId));
     return interaction.reply({ content: "Available commands:\n" + allowedCommands.map(c => `/${c}`).join("\n"), ephemeral: true });
@@ -223,12 +221,10 @@ client.on("interactionCreate", async (interaction) => {
     return interaction.reply(msgs.slice(0, amount).map((m,i)=> `\`${i+1}\` 🗑 ${m.author}: ${m.content}`).join("\n"));
   }
 
-  // Other commands
   if (command === "ping") return interaction.reply(`🏓 Pong! ${client.ws.ping}ms`);
   if (command === "members") return interaction.reply(`👥 Total Members: ${interaction.guild.memberCount}`);
   if (command === "togglereacts") { reactEnabled = !reactEnabled; return interaction.reply(`Reactions now ${reactEnabled ? "ON ✅" : "OFF ❌"}`); }
 
-  // Kick/Ban/Unban
   if (command === "kick") { const user = interaction.options.getMember("user"); await user.kick(); return interaction.reply(`✅ ${user.user.tag} kicked.`); }
   if (command === "ban") { const user = interaction.options.getMember("user"); await user.ban(); return interaction.reply(`✅ ${user.user.tag} banned.`); }
   if (command === "unban") { const id = interaction.options.getString("userid"); await interaction.guild.members.unban(id); return interaction.reply("✅ User unbanned."); }
@@ -237,7 +233,6 @@ client.on("interactionCreate", async (interaction) => {
   if (command === "warn") { const user = interaction.options.getMember("user"); const reason = interaction.options.getString("reason")||"No reason"; await user.send(`⚠ You were warned: ${reason}`).catch(()=>{}); return interaction.reply(`⚠ ${user.user.tag} warned.`); }
   if (command === "remind") { const seconds = interaction.options.getInteger("seconds"); const text = interaction.options.getString("text"); interaction.reply(`⏳ Reminder set for ${seconds}s`); setTimeout(()=>{ interaction.followUp(`⏰ Reminder: ${text}`); }, seconds*1000); }
 
-  // Move
   if (command === "move") {
     const member = interaction.options.getMember("user");
     const channel = interaction.options.getChannel("channel");
@@ -246,7 +241,6 @@ client.on("interactionCreate", async (interaction) => {
     catch { return interaction.reply({ content: "❌ Couldn't move member", ephemeral: true }); }
   }
 
-  // Spam
   if (command === "spam") {
     const text = interaction.options.getString("message");
     const count = interaction.options.getInteger("count");
@@ -260,7 +254,6 @@ client.on("interactionCreate", async (interaction) => {
     for (let i=0;i<count;i++){ setTimeout(()=>{ interaction.channel.send(text); }, delayMs*i);}
   }
 
-  // ============ GIVE / REVOKE ============
   if (command === "give") {
     if (!isOwner) return interaction.reply({ content: "❌ Only owner can give permissions.", ephemeral: true });
     const targetUser = interaction.options.getUser("user");
