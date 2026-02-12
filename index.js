@@ -79,19 +79,19 @@ client.on("messageCreate", async (message) => {
     const command = args.shift().toLowerCase();
 
     // !say command
-    if (command === "say") {
-      if (message.author.id !== ownerId) return message.reply("Owner only ❌");
+  if (command === "say") {
+    if (message.author.id !== ownerId) return;
 
-      const text = args.join(" ");
-      if (!text) return message.reply("Please provide a message to say.");
+    const text = args.join(" ");
+    if (!text) return; // do nothing if no text
 
-      // Delete user's original message
-      await message.delete().catch(() => {});
+    // Delete user's original message
+    await message.delete().catch(() => {});
 
-      // Send bot message
-      message.channel.send(text);
-    }
+    // Send bot message
+    message.channel.send(text);
   }
+}
 });
 
 // ================= SNIPE SYSTEM =================
