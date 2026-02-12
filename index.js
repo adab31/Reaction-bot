@@ -196,6 +196,22 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
+  if (interaction.commandName === "shutdown") {
+
+    // OWNER CHECK
+    if (interaction.user.id !== process.env.OWNER_ID) {
+      return interaction.reply({
+        content: "❌ Ye command sirf bot owner use kar sakta hai.",
+        ephemeral: true
+      });
+    }
+
+    await interaction.reply("✅ Bot shutdown ho raha hai...");
+    process.exit();
+  }
+
+  if (!interaction.isChatInputCommand()) return;
+
   const { commandName } = interaction;
 
   if (commandName === "ping")
