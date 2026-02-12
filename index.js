@@ -41,6 +41,7 @@ const userReactions = {
 };
 
 const badWords = ["suar", "gaandu", "bhadu", "kutte", "chutiya", "mc", "bc"];
+const PREFIX = "!"; // Prefix for custom commands
 
 // ================= REACTION SYSTEM =================
 const reactCooldown = new Map();
@@ -49,49 +50,70 @@ const COOLDOWN_TIME = 20000;
 client.on("messageCreate", async (message) => {
   if (!message.guild || message.author.bot) return;
 
-  // bad word filter
-  const msg = message.content.toLowerCase();
-  if (badWords.some(word => msg.includes(word))) {
+  // ===== BAD WORD FILTER =====
+  const msgLower = message.content.toLowerCase();
+  if (badWords.some(word => msgLower.includes(word))) {
     await message.delete().catch(() => {});
-    return message.channel.send(
-      `${message.author}, bad words allowed nahi 🚫`
-    );
+    return message.channel.send(`${message.author}, bad words allowed nahi 🚫`);
   }
 
-  if (!reactEnabled) return;
-
-  const emojis = userReactions[message.author.id];
-  if (!emojis) return;
-
-  const now = Date.now();
-
-  if (!reactCooldown.has(message.author.id)) {
-    reactCooldown.set(message.author.id, new Map());
+  // ===== REACTION SYSTEM =====
+  if (reactEnabled) {
+    const emojis = userReactions[message.author.id];
+    if (emojis) {
+      const now = Date.now();
+      if (!reactCooldown.has(message.author.id)) reactCooldown.set(message.author.id, new Map());
+      const userMap = reactCooldown.get(message.author.id);
+      for (const emoji of emojis) {
+        const last = userMap.get(emoji);
+        if (!last || now - last >= COOLDOWN_TIME) {
+          try { await message.react(emoji); userMap.set(emoji, now); } catch {}
+        }
+      }
+    }
   }
 
-  const userMap = reactCooldown.get(message.author.id);
+  // ===== PREFIX COMMANDS =====
+  if (message.content.startsWith(PREFIX)) {
+    const args = message.content.slice(PREFIX.length).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
 
-  for (const emoji of emojis) {
-    const last = userMap.get(emoji);
-    if (last && now - last < COOLDOWN_TIME) continue;
+    // !say command
+    if (command === "say") {
+      if (message.author.id !== ownerId) return message.reply("Owner only ❌");
 
-    try {
-      await message.react(emoji);
-      userMap.set(emoji, now);
-    } catch {}
+      const text = args.join(" ");
+      if (!text) return message.reply("Please provide a message to say.");
+
+      // Delete user's original message
+      await message.delete().catch(() => {});
+
+      // Send bot message
+      message.channel.send(text);
+    }
   }
 });
 
-// ================= SNIPE =================
-let snipedMessages = {};
+// ================= SNIPE SYSTEM =================
+let snipedMessages = {}; // channelId => array of { content, author, timestamp }
+const MAX_SNIPES = 10; // store last 10 deleted messages per channel
 
 client.on("messageDelete", (message) => {
   if (!message.guild || message.author?.bot) return;
 
-  snipedMessages[message.channel.id] = {
+  const channelId = message.channel.id;
+
+  if (!snipedMessages[channelId]) snipedMessages[channelId] = [];
+
+  snipedMessages[channelId].unshift({
     content: message.content,
-    author: message.author.tag
-  };
+    author: message.author.tag,
+    timestamp: new Date()
+  });
+
+  if (snipedMessages[channelId].length > MAX_SNIPES) {
+    snipedMessages[channelId].pop(); // remove oldest
+  }
 });
 
 // ================= JOIN / LEAVE =================
@@ -115,7 +137,23 @@ const commands = [
 
   new SlashCommandBuilder().setName("members").setDescription("Show member count"),
 
-  new SlashCommandBuilder().setName("snipe").setDescription("See last deleted message"),
+  // Snipe commands
+  new SlashCommandBuilder()
+    .setName("snipe")
+    .setDescription("See last deleted message in this channel"),
+
+  new SlashCommandBuilder()
+    .setName("snipeall")
+    .setDescription("See last deleted message in the server"),
+
+  new SlashCommandBuilder()
+    .setName("snipelist")
+    .setDescription("See a list of last deleted messages in this channel")
+    .addIntegerOption(option =>
+      option.setName("amount")
+        .setDescription("Number of messages to show (1-10)")
+        .setRequired(false)
+    ),
 
   new SlashCommandBuilder()
     .setName("togglereacts")
@@ -173,13 +211,7 @@ const commands = [
     .addIntegerOption(option =>
       option.setName("seconds").setDescription("Seconds").setRequired(true))
     .addStringOption(option =>
-      option.setName("text").setDescription("Reminder text").setRequired(true)),
-
-  new SlashCommandBuilder()
-    .setName("say")
-    .setDescription("Bot says something")
-    .addStringOption(option =>
-      option.setName("text").setDescription("Text").setRequired(true))
+      option.setName("text").setDescription("Reminder text").setRequired(true))
 ];
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
@@ -196,35 +228,58 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  if (interaction.commandName === "shutdown") {
+  const { commandName } = interaction;
 
-    // OWNER CHECK
-    if (interaction.user.id !== process.env.OWNER_ID) {
+  // ================= SNIPE COMMANDS =================
+  if (commandName === "snipe") {
+    const data = snipedMessages[interaction.channel.id]?.[0];
+    if (!data) return interaction.reply("No deleted message ❌");
+    return interaction.reply(`🗑 ${data.author}: ${data.content}`);
+  }
+
+  if (commandName === "snipeall") {
+    let lastMessage = null;
+    for (const msgs of Object.values(snipedMessages)) {
+      if (msgs.length > 0) {
+        if (!lastMessage || msgs[0].timestamp > lastMessage.timestamp) {
+          lastMessage = msgs[0];
+        }
+      }
+    }
+    if (!lastMessage) return interaction.reply("No deleted messages ❌");
+    return interaction.reply(`🗑 ${lastMessage.author}: ${lastMessage.content}`);
+  }
+
+  if (commandName === "snipelist") {
+    const amount = interaction.options.getInteger("amount") || 5;
+    const msgs = snipedMessages[interaction.channel.id];
+
+    if (!msgs || msgs.length === 0) return interaction.reply("No deleted messages ❌");
+
+    const list = msgs.slice(0, amount).map(
+      (m, i) => `\`${i + 1}\` 🗑 ${m.author}: ${m.content}`
+    ).join("\n");
+
+    return interaction.reply(list);
+  }
+
+  // ================= OTHER COMMANDS =================
+  if (commandName === "shutdown") {
+    if (interaction.user.id !== ownerId) {
       return interaction.reply({
         content: "❌ Ye command sirf bot owner use kar sakta hai.",
         ephemeral: true
       });
     }
-
     await interaction.reply("✅ Bot shutdown ho raha hai...");
     process.exit();
   }
-
-  if (!interaction.isChatInputCommand()) return;
-
-  const { commandName } = interaction;
 
   if (commandName === "ping")
     return interaction.reply(`🏓 Pong! ${client.ws.ping}ms`);
 
   if (commandName === "members")
     return interaction.reply(`👥 Total Members: ${interaction.guild.memberCount}`);
-
-  if (commandName === "snipe") {
-    const data = snipedMessages[interaction.channel.id];
-    if (!data) return interaction.reply("No deleted message ❌");
-    return interaction.reply(`🗑 ${data.author}: ${data.content}`);
-  }
 
   if (commandName === "togglereacts") {
     if (interaction.user.id !== ownerId)
@@ -280,13 +335,6 @@ client.on("interactionCreate", async (interaction) => {
     setTimeout(() => {
       interaction.followUp(`⏰ Reminder: ${text}`);
     }, seconds * 1000);
-  }
-
-  if (commandName === "say") {
-    if (interaction.user.id !== ownerId)
-      return interaction.reply("Owner only ❌");
-    const text = interaction.options.getString("text");
-    return interaction.reply(text);
   }
 });
 
