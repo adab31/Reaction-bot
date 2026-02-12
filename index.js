@@ -5,8 +5,7 @@ const {
   GatewayIntentBits,
   SlashCommandBuilder,
   REST,
-  Routes,
-  PermissionFlagsBits
+  Routes
 } = require("discord.js");
 
 // ================= EXPRESS =================
@@ -23,12 +22,12 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildVoiceStates // Needed for moving members
+    GatewayIntentBits.GuildVoiceStates
   ]
 });
 
 // ================= SETTINGS =================
-const ownerId = "1414100097590890588"; // ✅ Only this user can run commands
+const ownerId = "1414100097590890588"; // Only this user can run commands
 const guildId = "1464580639620727030";
 const notificationChannelId = "1464603388196032626";
 const autoRoleId = "1464585250964242494";
@@ -90,9 +89,8 @@ client.on("messageCreate", async (message) => {
       message.channel.send(text);
     }
 
-    // ==== SPAM COMMAND ====
+    // ==== SPAM COMMAND (prefix) ====
     if (command === "spam") {
-      // Usage: !spam <count> <delay(ms)> <message>
       const count = parseInt(args[0]);
       const delay = parseInt(args[1]);
       const spamMessage = args.slice(2).join(" ");
@@ -102,6 +100,7 @@ client.on("messageCreate", async (message) => {
       }
 
       await message.delete().catch(() => {});
+
       for (let i = 0; i < count; i++) {
         message.channel.send(spamMessage);
         await new Promise(res => setTimeout(res, delay));
@@ -144,103 +143,65 @@ client.on("guildMemberRemove", (member) => {
 
 // ================= SLASH COMMANDS =================
 const commands = [
-
   new SlashCommandBuilder().setName("ping").setDescription("Check bot latency"),
-
   new SlashCommandBuilder().setName("members").setDescription("Show member count"),
-
-  // Snipe commands
-  new SlashCommandBuilder()
-    .setName("snipe")
-    .setDescription("See last deleted message in this channel"),
-
-  new SlashCommandBuilder()
-    .setName("snipeall")
-    .setDescription("See last deleted message in the server"),
-
+  new SlashCommandBuilder().setName("snipe").setDescription("See last deleted message in this channel"),
+  new SlashCommandBuilder().setName("snipeall").setDescription("See last deleted message in the server"),
   new SlashCommandBuilder()
     .setName("snipelist")
     .setDescription("See a list of last deleted messages in this channel")
-    .addIntegerOption(option =>
-      option.setName("amount")
-        .setDescription("Number of messages to show (1-10)")
-        .setRequired(false)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("togglereacts")
-    .setDescription("Toggle reaction system"),
-
+    .addIntegerOption(option => option.setName("amount").setDescription("Number of messages to show (1-10)").setRequired(false)),
+  new SlashCommandBuilder().setName("togglereacts").setDescription("Toggle reaction system"),
   new SlashCommandBuilder()
     .setName("kick")
     .setDescription("Kick a member")
-    .addUserOption(option =>
-      option.setName("user").setDescription("User").setRequired(true)),
-
+    .addUserOption(option => option.setName("user").setDescription("User").setRequired(true)),
   new SlashCommandBuilder()
     .setName("ban")
     .setDescription("Ban a member")
-    .addUserOption(option =>
-      option.setName("user").setDescription("User").setRequired(true)),
-
+    .addUserOption(option => option.setName("user").setDescription("User").setRequired(true)),
   new SlashCommandBuilder()
     .setName("unban")
     .setDescription("Unban by ID")
-    .addStringOption(option =>
-      option.setName("userid").setDescription("User ID").setRequired(true)),
-
+    .addStringOption(option => option.setName("userid").setDescription("User ID").setRequired(true)),
   new SlashCommandBuilder()
     .setName("clear")
     .setDescription("Clear messages")
-    .addIntegerOption(option =>
-      option.setName("amount").setDescription("1-100").setRequired(true)),
-
+    .addIntegerOption(option => option.setName("amount").setDescription("1-100").setRequired(true)),
   new SlashCommandBuilder()
     .setName("timeout")
     .setDescription("Timeout a member")
-    .addUserOption(option =>
-      option.setName("user").setDescription("User").setRequired(true))
-    .addIntegerOption(option =>
-      option.setName("minutes").setDescription("Minutes").setRequired(true)),
-
+    .addUserOption(option => option.setName("user").setDescription("User").setRequired(true))
+    .addIntegerOption(option => option.setName("minutes").setDescription("Minutes").setRequired(true)),
   new SlashCommandBuilder()
     .setName("warn")
     .setDescription("Warn a member")
-    .addUserOption(option =>
-      option.setName("user").setDescription("User").setRequired(true))
-    .addStringOption(option =>
-      option.setName("reason").setDescription("Reason").setRequired(false)),
-
+    .addUserOption(option => option.setName("user").setDescription("User").setRequired(true))
+    .addStringOption(option => option.setName("reason").setDescription("Reason").setRequired(false)),
   new SlashCommandBuilder()
     .setName("remind")
     .setDescription("Set reminder")
-    .addIntegerOption(option =>
-      option.setName("seconds").setDescription("Seconds").setRequired(true))
-    .addStringOption(option =>
-      option.setName("text").setDescription("Reminder text").setRequired(true)),
-
-  // ✅ MOVE COMMAND
+    .addIntegerOption(option => option.setName("seconds").setDescription("Seconds").setRequired(true))
+    .addStringOption(option => option.setName("text").setDescription("Reminder text").setRequired(true)),
   new SlashCommandBuilder()
     .setName("move")
     .setDescription("Move a member to a voice channel")
-    .addUserOption(option =>
-      option.setName("user")
-        .setDescription("User to move")
-        .setRequired(true))
-    .addChannelOption(option =>
-      option.setName("channel")
-        .setDescription("Voice channel to move to")
-        .setRequired(true)
-        .addChannelTypes(2)) // 2 = Voice Channel
+    .addUserOption(option => option.setName("user").setDescription("User to move").setRequired(true))
+    .addChannelOption(option => option.setName("channel").setDescription("Voice channel to move to").setRequired(true).addChannelTypes(2)),
+
+  // ✅ NEW: /spam slash command
+  new SlashCommandBuilder()
+    .setName("spam")
+    .setDescription("Spam a message (owner only)")
+    .addIntegerOption(option => option.setName("count").setDescription("Number of messages").setRequired(true))
+    .addIntegerOption(option => option.setName("delay").setDescription("Delay in ms between messages").setRequired(true))
+    .addStringOption(option => option.setName("message").setDescription("Message to spam").setRequired(true))
 ];
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
 (async () => {
-  await rest.put(
-    Routes.applicationCommands(process.env.CLIENT_ID),
-    { body: commands }
-  );
+  await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
   console.log("Slash commands registered ✅");
 })();
 
@@ -282,88 +243,33 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   // ================= OTHER COMMANDS =================
-  if (commandName === "shutdown") {
-    await interaction.reply("✅ Bot shutdown ho raha hai...");
-    process.exit();
-  }
+  if (commandName === "shutdown") { await interaction.reply("✅ Bot shutdown ho raha hai..."); process.exit(); }
+  if (commandName === "ping") return interaction.reply(`🏓 Pong! ${client.ws.ping}ms`);
+  if (commandName === "members") return interaction.reply(`👥 Total Members: ${interaction.guild.memberCount}`);
+  if (commandName === "togglereacts") { reactEnabled = !reactEnabled; return interaction.reply(`Reactions are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`); }
+  if (commandName === "kick") { const user = interaction.options.getMember("user"); await user.kick(); return interaction.reply(`✅ ${user.user.tag} kicked.`); }
+  if (commandName === "ban") { const user = interaction.options.getMember("user"); await user.ban(); return interaction.reply(`✅ ${user.user.tag} banned.`); }
+  if (commandName === "unban") { const id = interaction.options.getString("userid"); await interaction.guild.members.unban(id); return interaction.reply("✅ User unbanned."); }
+  if (commandName === "clear") { const amount = interaction.options.getInteger("amount"); await interaction.channel.bulkDelete(amount, true); return interaction.reply({ content: `Deleted ${amount} messages`, ephemeral: true }); }
+  if (commandName === "timeout") { const user = interaction.options.getMember("user"); const minutes = interaction.options.getInteger("minutes"); await user.timeout(minutes*60*1000); return interaction.reply(`⏳ ${user.user.tag} timeout ${minutes} min.`); }
+  if (commandName === "warn") { const user = interaction.options.getMember("user"); const reason = interaction.options.getString("reason") || "No reason"; await user.send(`⚠ You were warned: ${reason}`).catch(()=>{}); return interaction.reply(`⚠ ${user.user.tag} warned.`); }
+  if (commandName === "remind") { const seconds = interaction.options.getInteger("seconds"); const text = interaction.options.getString("text"); interaction.reply(`⏳ Reminder set for ${seconds}s`); setTimeout(()=>{interaction.followUp(`⏰ Reminder: ${text}`);}, seconds*1000); }
+  if (commandName === "move") { const member = interaction.options.getMember("user"); const channel = interaction.options.getChannel("channel"); if (!member.voice.channel) return interaction.reply({ content: "❌ This user is not in a voice channel.", ephemeral: true }); try { await member.voice.setChannel(channel); return interaction.reply(`✅ Moved ${member.user.tag} to ${channel.name}`); } catch(e){ console.error(e); return interaction.reply({ content: "❌ I couldn't move this member. Make sure I have permissions.", ephemeral: true }); } }
 
-  if (commandName === "ping")
-    return interaction.reply(`🏓 Pong! ${client.ws.ping}ms`);
+  // ================= /SPAM SLASH COMMAND =================
+  if (commandName === "spam") {
+    const count = interaction.options.getInteger("count");
+    const delay = interaction.options.getInteger("delay");
+    const spamMessage = interaction.options.getString("message");
 
-  if (commandName === "members")
-    return interaction.reply(`👥 Total Members: ${interaction.guild.memberCount}`);
+    await interaction.reply({ content: `Spamming ${count} messages...`, ephemeral: true });
 
-  if (commandName === "togglereacts") {
-    reactEnabled = !reactEnabled;
-    return interaction.reply(`Reactions are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`);
-  }
-
-  if (commandName === "kick") {
-    const user = interaction.options.getMember("user");
-    await user.kick();
-    return interaction.reply(`✅ ${user.user.tag} kicked.`);
-  }
-
-  if (commandName === "ban") {
-    const user = interaction.options.getMember("user");
-    await user.ban();
-    return interaction.reply(`✅ ${user.user.tag} banned.`);
-  }
-
-  if (commandName === "unban") {
-    const id = interaction.options.getString("userid");
-    await interaction.guild.members.unban(id);
-    return interaction.reply("✅ User unbanned.");
-  }
-
-  if (commandName === "clear") {
-    const amount = interaction.options.getInteger("amount");
-    await interaction.channel.bulkDelete(amount, true);
-    return interaction.reply({ content: `Deleted ${amount} messages`, ephemeral: true });
-  }
-
-  if (commandName === "timeout") {
-    const user = interaction.options.getMember("user");
-    const minutes = interaction.options.getInteger("minutes");
-    await user.timeout(minutes * 60 * 1000);
-    return interaction.reply(`⏳ ${user.user.tag} timeout ${minutes} min.`);
-  }
-
-  if (commandName === "warn") {
-    const user = interaction.options.getMember("user");
-    const reason = interaction.options.getString("reason") || "No reason";
-    await user.send(`⚠ You were warned: ${reason}`).catch(() => {});
-    return interaction.reply(`⚠ ${user.user.tag} warned.`);
-  }
-
-  if (commandName === "remind") {
-    const seconds = interaction.options.getInteger("seconds");
-    const text = interaction.options.getString("text");
-    interaction.reply(`⏳ Reminder set for ${seconds}s`);
-    setTimeout(() => {
-      interaction.followUp(`⏰ Reminder: ${text}`);
-    }, seconds * 1000);
-  }
-
-  // ================= MOVE COMMAND =================
-  if (commandName === "move") {
-    const member = interaction.options.getMember("user");
-    const channel = interaction.options.getChannel("channel");
-    if (!member.voice.channel)
-      return interaction.reply({ content: "❌ This user is not in a voice channel.", ephemeral: true });
-
-    try {
-      await member.voice.setChannel(channel);
-      return interaction.reply(`✅ Moved ${member.user.tag} to ${channel.name}`);
-    } catch (error) {
-      console.error(error);
-      return interaction.reply({ content: "❌ I couldn't move this member. Make sure I have permissions.", ephemeral: true });
+    for (let i=0; i<count; i++) {
+      interaction.channel.send(spamMessage);
+      await new Promise(res => setTimeout(res, delay));
     }
   }
 });
 
-client.once("ready", () =>
-  console.log(`Logged in as ${client.user.tag}`)
-);
-
+client.once("ready", () => console.log(`Logged in as ${client.user.tag}`));
 client.login(process.env.TOKEN);
