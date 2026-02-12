@@ -1,21 +1,22 @@
-const { Client, GatewayIntentBits } = require("discord.js");
-const express = require("express");
 require("dotenv").config();
+const express = require("express");
+const {
+  Client,
+  GatewayIntentBits,
+  SlashCommandBuilder,
+  REST,
+  Routes,
+  PermissionFlagsBits
+} = require("discord.js");
 
-// ===== EXPRESS SERVER FOR RENDER =====
+// ================= EXPRESS =================
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.get("/", (req, res) => res.send("Bot Running 🚀"));
+app.listen(process.env.PORT || 3000, () =>
+  console.log("Web server started")
+);
 
-app.get("/", (req, res) => {
-  res.send("Bot is running 🚀");
-});
-
-app.listen(PORT, () => {
-  console.log(`🌐 Server running on port ${PORT}`);
-});
-// =====================================
-
-// ===== DISCORD BOT =====
+// ================= CLIENT =================
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -25,248 +26,81 @@ const client = new Client({
   ]
 });
 
-// ======================= SETTINGS =======================
-const notificationChannelId = "1464603388196032626";
-const autoRoleId = "1464585250964242494";
-const badWords = ["suar", "gaandu", "bhadu", "kutte", "chutiya", "bsdk", "mc", "bc", "dalle"];
-const ownerId = "1414100097590890588";
+// ================= SETTINGS =================
+const ownerId = "YOUR_USER_ID";
+const guildId = "YOUR_GUILD_ID";
+const notificationChannelId = "YOUR_WELCOME_CHANNEL_ID";
+const autoRoleId = "YOUR_AUTOROLE_ID";
 
-// ======================= CUSTOM USER REACT SYSTEM =======================
-let reactEnabled = true; // Toggle feature
+let reactEnabled = true;
+
 const userReactions = {
-  "1414100097590890588": ["🔥", "😎", "❤️"],   // User 1
-  "1464583967385714854": ["💀", "😂", "🐷"],   // User 2
-  "1467125413967958018": ["❤️", "💦", "🌈"]    // User 3
+  "1414100097590890588": ["🔥", "😎", "❤️"],
+  "1464583967385714854": ["💀", "😂", "🐷"],
+  "1467125413967958018": ["❤️", "💦", "🌈"]
 };
-const reactCooldown = new Map();
-const COOLDOWN_TIME = 20000; // 20 seconds per emoji
 
-// ======================= SNIPE SYSTEM =======================
+const badWords = ["suar", "gaandu", "bhadu", "kutte", "chutiya", "mc", "bc"];
+
+// ================= REACTION SYSTEM =================
+const reactCooldown = new Map();
+const COOLDOWN_TIME = 20000;
+
+client.on("messageCreate", async (message) => {
+  if (!message.guild || message.author.bot) return;
+
+  // bad word filter
+  const msg = message.content.toLowerCase();
+  if (badWords.some(word => msg.includes(word))) {
+    await message.delete().catch(() => {});
+    return message.channel.send(
+      `${message.author}, bad words allowed nahi 🚫`
+    );
+  }
+
+  if (!reactEnabled) return;
+
+  const emojis = userReactions[message.author.id];
+  if (!emojis) return;
+
+  const now = Date.now();
+
+  if (!reactCooldown.has(message.author.id)) {
+    reactCooldown.set(message.author.id, new Map());
+  }
+
+  const userMap = reactCooldown.get(message.author.id);
+
+  for (const emoji of emojis) {
+    const last = userMap.get(emoji);
+    if (last && now - last < COOLDOWN_TIME) continue;
+
+    try {
+      await message.react(emoji);
+      userMap.set(emoji, now);
+    } catch {}
+  }
+});
+
+// ================= SNIPE =================
 let snipedMessages = {};
 
-// ======================= READY EVENT =======================
-client.once("ready", () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
-});
-
-// ======================= MESSAGE LISTENER =======================
-client.on("messageCreate", async (message) => {
-  if (!message.guild) return;
-  if (message.author.bot) return;
-
-  // ----------------- SNIPE SYSTEM -----------------
-  // Capture deleted messages
-  // (Works via messageDelete listener below)
-  // ----------------- BAD WORD FILTER -----------------
-  const msgLower = message.content.toLowerCase();
-  if (badWords.some(word => msgLower.includes(word))) {
-    await message.delete();
-    message.channel.send(`${message.author}, bad words allowed nahi 🚫`);
-    return;
-  }
-
-  const args = message.content.split(" ");
-  const command = args[0].toLowerCase();
-
-  // ----------------- SNIPE COMMAND -----------------
-  if (command === "?snipe") {
-    const data = snipedMessages[message.channel.id];
-    if (!data) {
-      return message.reply("❌ Is channel me koi recent deleted message nahi mila.");
-    }
-
-    const embed = {
-      color: 0xff0000,
-      author: {
-        name: data.author,
-        icon_url: data.avatar
-      },
-      description: data.content || "No text",
-      footer: { text: "Deleted message" },
-      timestamp: new Date()
-    };
-
-    message.channel.send({ embeds: [embed] });
-    return;
-  }
-
-  // ----------------- CUSTOM USER REACTS -----------------
-  if (reactEnabled) {
-    const emojis = userReactions[message.author.id];
-    if (emojis) {
-      const now = Date.now();
-      if (!reactCooldown.has(message.author.id)) reactCooldown.set(message.author.id, new Map());
-      const userMap = reactCooldown.get(message.author.id);
-
-      for (const emoji of emojis) {
-        const lastReact = userMap.get(emoji);
-        if (!lastReact || now - lastReact >= COOLDOWN_TIME) {
-          try {
-            await message.react(emoji);
-            userMap.set(emoji, now);
-          } catch (err) {
-            console.error(`Couldn't react with ${emoji}:`, err);
-          }
-        }
-      }
-    }
-  }
-
-  // ----------------- TOGGLE COMMAND -----------------
-  if (message.content.toLowerCase() === "!togglereacts") {
-    reactEnabled = !reactEnabled;
-    message.channel.send(`Reacts are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`);
-    return;
-  }
-
-  // ----------------- REMINDER COMMAND -----------------
-  if (command === "?remind") {
-    const timeInput = args[1];
-    const text = args.slice(2).join(" ");
-    if (!timeInput || !text) return message.reply("Format: ?remind 10s hello");
-
-    const timeValue = parseInt(timeInput);
-    const timeUnit = timeInput.slice(-1);
-    let milliseconds;
-
-    if (timeUnit === "s") milliseconds = timeValue * 1000;
-    else if (timeUnit === "m") milliseconds = timeValue * 60000;
-    else if (timeUnit === "h") milliseconds = timeValue * 3600000;
-    else return message.reply("Use s, m, h. Example: ?remind 5m hello");
-
-    message.reply(`⏳ Reminder set for ${timeInput}`);
-    setTimeout(() => {
-      message.reply(`⏰ Reminder: ${text}`);
-    }, milliseconds);
-    return;
-  }
-
-  // ----------------- MEMBER COUNT -----------------
-  if (command === "!members") {
-    message.channel.send(`👥 Total Members: ${message.guild.memberCount}`);
-    return;
-  }
-
-  // ----------------- MODERATION COMMANDS -----------------
-  // KICK
-  if (command === "?kick") {
-    if (!message.member.permissions.has("KickMembers"))
-      return message.reply("❌ Tumhe KickMembers permission nahi hai.");
-
-    const member = message.mentions.members.first();
-    if (!member) return message.reply("User mention karo.");
-
-    await member.kick();
-    message.channel.send(`✅ ${member.user.tag} ko kick kar diya.`);
-    return;
-  }
-
-  // BAN
-  if (command === "?ban") {
-    if (!message.member.permissions.has("BanMembers"))
-      return message.reply("❌ Tumhe BanMembers permission nahi hai.");
-
-    const member = message.mentions.members.first();
-    if (!member) return message.reply("User mention karo.");
-
-    await member.ban();
-    message.channel.send(`✅ ${member.user.tag} ko ban kar diya.`);
-    return;
-  }
-
-  // UNBAN
-  if (command === "?unban") {
-    if (!message.member.permissions.has("BanMembers"))
-      return message.reply("❌ Tumhe BanMembers permission nahi hai.");
-
-    const userId = args[1];
-    if (!userId) return message.reply("User ID do.");
-
-    await message.guild.members.unban(userId);
-    message.channel.send("✅ User unban ho gaya.");
-    return;
-  }
-
-  // CLEAR
-  if (command === "?clear") {
-    if (!message.member.permissions.has("ManageMessages"))
-      return message.reply("❌ Tumhe ManageMessages permission nahi hai.");
-
-    const amount = parseInt(args[1]);
-    if (!amount || amount > 100)
-      return message.reply("1-100 ke beech number likho.");
-
-    await message.channel.bulkDelete(amount, true);
-    message.channel.send(`✅ ${amount} messages delete kar diye.`);
-    return;
-  }
-
-  // TIMEOUT
-  if (command === "?timeout") {
-    if (!message.member.permissions.has("ModerateMembers"))
-      return message.reply("❌ Tumhe ModerateMembers permission nahi hai.");
-
-    const member = message.mentions.members.first();
-    const minutes = parseInt(args[2]);
-    if (!member) return message.reply("User mention karo.");
-    if (!minutes) return message.reply("Minutes likho.");
-
-    await member.timeout(minutes * 60 * 1000);
-    message.channel.send(`⏳ ${member.user.tag} ko ${minutes} minute timeout diya.`);
-    return;
-  }
-
-  // WARN
-  if (command === "?warn") {
-    if (!message.member.permissions.has("ManageMessages"))
-      return message.reply("❌ Tumhe permission nahi hai.");
-
-    const member = message.mentions.members.first();
-    if (!member) return message.reply("User mention karo.");
-
-    const reason = args.slice(2).join(" ") || "No reason";
-    member.send(`⚠ Tumhe warn diya gaya hai.\nReason: ${reason}`).catch(() => {});
-    message.channel.send(`⚠ ${member.user.tag} ko warn diya.`);
-    return;
-  }
-
-  // SAY COMMAND
-  if (command === "?say") {
-    if (message.author.id !== ownerId)
-      return message.reply("❌ Tum is command ko use nahi kar sakte.");
-
-    const text = message.content.slice(5).trim();
-    if (!text) return message.reply("Message likho bhi.");
-
-    message.delete();
-    message.channel.send(text);
-    return;
-  }
-
-});
-
-// ======================= MESSAGE DELETE LISTENER =======================
 client.on("messageDelete", (message) => {
-  if (!message.guild) return;
-  if (!message.author || message.author.bot) return;
+  if (!message.guild || message.author?.bot) return;
 
   snipedMessages[message.channel.id] = {
     content: message.content,
-    author: message.author.tag,
-    avatar: message.author.displayAvatarURL({ dynamic: true }),
-    createdAt: message.createdAt
+    author: message.author.tag
   };
 });
 
-// ======================= GUILD MEMBER EVENTS =======================
+// ================= JOIN / LEAVE =================
 client.on("guildMemberAdd", async (member) => {
   const channel = member.guild.channels.cache.get(notificationChannelId);
   if (channel) channel.send(`🎉 Welcome ${member.user.tag}!`);
 
   const role = member.guild.roles.cache.get(autoRoleId);
-  if (role) await member.roles.add(role);
-
-  member.send(`Welcome to ${member.guild.name} 🎉`);
+  if (role) await member.roles.add(role).catch(() => {});
 });
 
 client.on("guildMemberRemove", (member) => {
@@ -274,5 +108,174 @@ client.on("guildMemberRemove", (member) => {
   if (channel) channel.send(`👋 ${member.user.tag} left the server.`);
 });
 
-// ======================= BOT LOGIN =======================
+// ================= SLASH COMMANDS =================
+const commands = [
+
+  new SlashCommandBuilder().setName("ping").setDescription("Check bot latency"),
+
+  new SlashCommandBuilder().setName("members").setDescription("Show member count"),
+
+  new SlashCommandBuilder().setName("snipe").setDescription("See last deleted message"),
+
+  new SlashCommandBuilder()
+    .setName("togglereacts")
+    .setDescription("Toggle reaction system"),
+
+  new SlashCommandBuilder()
+    .setName("kick")
+    .setDescription("Kick a member")
+    .addUserOption(option =>
+      option.setName("user").setDescription("User").setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
+
+  new SlashCommandBuilder()
+    .setName("ban")
+    .setDescription("Ban a member")
+    .addUserOption(option =>
+      option.setName("user").setDescription("User").setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+
+  new SlashCommandBuilder()
+    .setName("unban")
+    .setDescription("Unban by ID")
+    .addStringOption(option =>
+      option.setName("userid").setDescription("User ID").setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+
+  new SlashCommandBuilder()
+    .setName("clear")
+    .setDescription("Clear messages")
+    .addIntegerOption(option =>
+      option.setName("amount").setDescription("1-100").setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+
+  new SlashCommandBuilder()
+    .setName("timeout")
+    .setDescription("Timeout a member")
+    .addUserOption(option =>
+      option.setName("user").setDescription("User").setRequired(true))
+    .addIntegerOption(option =>
+      option.setName("minutes").setDescription("Minutes").setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+
+  new SlashCommandBuilder()
+    .setName("warn")
+    .setDescription("Warn a member")
+    .addUserOption(option =>
+      option.setName("user").setDescription("User").setRequired(true))
+    .addStringOption(option =>
+      option.setName("reason").setDescription("Reason").setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+
+  new SlashCommandBuilder()
+    .setName("remind")
+    .setDescription("Set reminder")
+    .addIntegerOption(option =>
+      option.setName("seconds").setDescription("Seconds").setRequired(true))
+    .addStringOption(option =>
+      option.setName("text").setDescription("Reminder text").setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName("say")
+    .setDescription("Bot says something")
+    .addStringOption(option =>
+      option.setName("text").setDescription("Text").setRequired(true))
+];
+
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
+(async () => {
+  await rest.put(
+    Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
+    { body: commands }
+  );
+  console.log("Slash commands registered ✅");
+})();
+
+// ================= INTERACTION HANDLER =================
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const { commandName } = interaction;
+
+  if (commandName === "ping")
+    return interaction.reply(`🏓 Pong! ${client.ws.ping}ms`);
+
+  if (commandName === "members")
+    return interaction.reply(`👥 Total Members: ${interaction.guild.memberCount}`);
+
+  if (commandName === "snipe") {
+    const data = snipedMessages[interaction.channel.id];
+    if (!data) return interaction.reply("No deleted message ❌");
+    return interaction.reply(`🗑 ${data.author}: ${data.content}`);
+  }
+
+  if (commandName === "togglereacts") {
+    if (interaction.user.id !== ownerId)
+      return interaction.reply("Owner only ❌");
+    reactEnabled = !reactEnabled;
+    return interaction.reply(
+      `Reactions are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`
+    );
+  }
+
+  if (commandName === "kick") {
+    const user = interaction.options.getMember("user");
+    await user.kick();
+    return interaction.reply(`✅ ${user.user.tag} kicked.`);
+  }
+
+  if (commandName === "ban") {
+    const user = interaction.options.getMember("user");
+    await user.ban();
+    return interaction.reply(`✅ ${user.user.tag} banned.`);
+  }
+
+  if (commandName === "unban") {
+    const id = interaction.options.getString("userid");
+    await interaction.guild.members.unban(id);
+    return interaction.reply("✅ User unbanned.");
+  }
+
+  if (commandName === "clear") {
+    const amount = interaction.options.getInteger("amount");
+    await interaction.channel.bulkDelete(amount, true);
+    return interaction.reply({ content: `Deleted ${amount} messages`, ephemeral: true });
+  }
+
+  if (commandName === "timeout") {
+    const user = interaction.options.getMember("user");
+    const minutes = interaction.options.getInteger("minutes");
+    await user.timeout(minutes * 60 * 1000);
+    return interaction.reply(`⏳ ${user.user.tag} timeout ${minutes} min.`);
+  }
+
+  if (commandName === "warn") {
+    const user = interaction.options.getMember("user");
+    const reason = interaction.options.getString("reason") || "No reason";
+    await user.send(`⚠ You were warned: ${reason}`).catch(() => {});
+    return interaction.reply(`⚠ ${user.user.tag} warned.`);
+  }
+
+  if (commandName === "remind") {
+    const seconds = interaction.options.getInteger("seconds");
+    const text = interaction.options.getString("text");
+    interaction.reply(`⏳ Reminder set for ${seconds}s`);
+    setTimeout(() => {
+      interaction.followUp(`⏰ Reminder: ${text}`);
+    }, seconds * 1000);
+  }
+
+  if (commandName === "say") {
+    if (interaction.user.id !== ownerId)
+      return interaction.reply("Owner only ❌");
+    const text = interaction.options.getString("text");
+    return interaction.reply(text);
+  }
+});
+
+client.once("ready", () =>
+  console.log(`Logged in as ${client.user.tag}`)
+);
+
 client.login(process.env.TOKEN);
