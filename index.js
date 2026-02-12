@@ -22,12 +22,13 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates // Needed for moving members
   ]
 });
 
 // ================= SETTINGS =================
-const ownerId = "1414100097590890588";
+const ownerId = "1414100097590890588"; // ✅ Only this user can run commands
 const guildId = "1464580639620727030";
 const notificationChannelId = "1464603388196032626";
 const autoRoleId = "1464585250964242494";
@@ -49,6 +50,9 @@ const COOLDOWN_TIME = 20000;
 
 client.on("messageCreate", async (message) => {
   if (!message.guild || message.author.bot) return;
+
+  // Only owner can use prefix commands
+  const isOwner = message.author.id === ownerId;
 
   // ===== BAD WORD FILTER =====
   const msgLower = message.content.toLowerCase();
@@ -75,34 +79,26 @@ client.on("messageCreate", async (message) => {
 
   // ===== PREFIX COMMANDS =====
   if (message.content.startsWith(PREFIX)) {
+    if (!isOwner) return; // Only owner can run prefix commands
     const args = message.content.slice(PREFIX.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    // !say command
-  if (command === "say") {
-    if (message.author.id !== ownerId) return;
-
-    const text = args.join(" ");
-    if (!text) return; // do nothing if no text
-
-    // Delete user's original message
-    await message.delete().catch(() => {});
-
-    // Send bot message
-    message.channel.send(text);
+    if (command === "say") {
+      const text = args.join(" ");
+      if (!text) return;
+      await message.delete().catch(() => {});
+      message.channel.send(text);
+    }
   }
-}
 });
 
 // ================= SNIPE SYSTEM =================
 let snipedMessages = {}; // channelId => array of { content, author, timestamp }
-const MAX_SNIPES = 10; // store last 10 deleted messages per channel
+const MAX_SNIPES = 10;
 
 client.on("messageDelete", (message) => {
   if (!message.guild || message.author?.bot) return;
-
   const channelId = message.channel.id;
-
   if (!snipedMessages[channelId]) snipedMessages[channelId] = [];
 
   snipedMessages[channelId].unshift({
@@ -111,9 +107,7 @@ client.on("messageDelete", (message) => {
     timestamp: new Date()
   });
 
-  if (snipedMessages[channelId].length > MAX_SNIPES) {
-    snipedMessages[channelId].pop(); // remove oldest
-  }
+  if (snipedMessages[channelId].length > MAX_SNIPES) snipedMessages[channelId].pop();
 });
 
 // ================= JOIN / LEAVE =================
@@ -163,29 +157,25 @@ const commands = [
     .setName("kick")
     .setDescription("Kick a member")
     .addUserOption(option =>
-      option.setName("user").setDescription("User").setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
+      option.setName("user").setDescription("User").setRequired(true)),
 
   new SlashCommandBuilder()
     .setName("ban")
     .setDescription("Ban a member")
     .addUserOption(option =>
-      option.setName("user").setDescription("User").setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+      option.setName("user").setDescription("User").setRequired(true)),
 
   new SlashCommandBuilder()
     .setName("unban")
     .setDescription("Unban by ID")
     .addStringOption(option =>
-      option.setName("userid").setDescription("User ID").setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+      option.setName("userid").setDescription("User ID").setRequired(true)),
 
   new SlashCommandBuilder()
     .setName("clear")
     .setDescription("Clear messages")
     .addIntegerOption(option =>
-      option.setName("amount").setDescription("1-100").setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+      option.setName("amount").setDescription("1-100").setRequired(true)),
 
   new SlashCommandBuilder()
     .setName("timeout")
@@ -193,8 +183,7 @@ const commands = [
     .addUserOption(option =>
       option.setName("user").setDescription("User").setRequired(true))
     .addIntegerOption(option =>
-      option.setName("minutes").setDescription("Minutes").setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+      option.setName("minutes").setDescription("Minutes").setRequired(true)),
 
   new SlashCommandBuilder()
     .setName("warn")
@@ -202,8 +191,7 @@ const commands = [
     .addUserOption(option =>
       option.setName("user").setDescription("User").setRequired(true))
     .addStringOption(option =>
-      option.setName("reason").setDescription("Reason").setRequired(false))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+      option.setName("reason").setDescription("Reason").setRequired(false)),
 
   new SlashCommandBuilder()
     .setName("remind")
@@ -211,7 +199,21 @@ const commands = [
     .addIntegerOption(option =>
       option.setName("seconds").setDescription("Seconds").setRequired(true))
     .addStringOption(option =>
-      option.setName("text").setDescription("Reminder text").setRequired(true))
+      option.setName("text").setDescription("Reminder text").setRequired(true)),
+
+  // ✅ MOVE COMMAND
+  new SlashCommandBuilder()
+    .setName("move")
+    .setDescription("Move a member to a voice channel")
+    .addUserOption(option =>
+      option.setName("user")
+        .setDescription("User to move")
+        .setRequired(true))
+    .addChannelOption(option =>
+      option.setName("channel")
+        .setDescription("Voice channel to move to")
+        .setRequired(true)
+        .addChannelTypes(2)) // 2 = Voice Channel
 ];
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
@@ -227,6 +229,10 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 // ================= INTERACTION HANDLER =================
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
+
+  // Only owner can use slash commands
+  if (interaction.user.id !== ownerId)
+    return interaction.reply({ content: "❌ Only bot owner can use commands.", ephemeral: true });
 
   const { commandName } = interaction;
 
@@ -253,24 +259,13 @@ client.on("interactionCreate", async (interaction) => {
   if (commandName === "snipelist") {
     const amount = interaction.options.getInteger("amount") || 5;
     const msgs = snipedMessages[interaction.channel.id];
-
     if (!msgs || msgs.length === 0) return interaction.reply("No deleted messages ❌");
-
-    const list = msgs.slice(0, amount).map(
-      (m, i) => `\`${i + 1}\` 🗑 ${m.author}: ${m.content}`
-    ).join("\n");
-
+    const list = msgs.slice(0, amount).map((m, i) => `\`${i+1}\` 🗑 ${m.author}: ${m.content}`).join("\n");
     return interaction.reply(list);
   }
 
   // ================= OTHER COMMANDS =================
   if (commandName === "shutdown") {
-    if (interaction.user.id !== ownerId) {
-      return interaction.reply({
-        content: "❌ Ye command sirf bot owner use kar sakta hai.",
-        ephemeral: true
-      });
-    }
     await interaction.reply("✅ Bot shutdown ho raha hai...");
     process.exit();
   }
@@ -282,12 +277,8 @@ client.on("interactionCreate", async (interaction) => {
     return interaction.reply(`👥 Total Members: ${interaction.guild.memberCount}`);
 
   if (commandName === "togglereacts") {
-    if (interaction.user.id !== ownerId)
-      return interaction.reply("Owner only ❌");
     reactEnabled = !reactEnabled;
-    return interaction.reply(
-      `Reactions are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`
-    );
+    return interaction.reply(`Reactions are now ${reactEnabled ? "ON ✅" : "OFF ❌"}`);
   }
 
   if (commandName === "kick") {
@@ -335,6 +326,22 @@ client.on("interactionCreate", async (interaction) => {
     setTimeout(() => {
       interaction.followUp(`⏰ Reminder: ${text}`);
     }, seconds * 1000);
+  }
+
+  // ================= MOVE COMMAND =================
+  if (commandName === "move") {
+    const member = interaction.options.getMember("user");
+    const channel = interaction.options.getChannel("channel");
+    if (!member.voice.channel)
+      return interaction.reply({ content: "❌ This user is not in a voice channel.", ephemeral: true });
+
+    try {
+      await member.voice.setChannel(channel);
+      return interaction.reply(`✅ Moved ${member.user.tag} to ${channel.name}`);
+    } catch (error) {
+      console.error(error);
+      return interaction.reply({ content: "❌ I couldn't move this member. Make sure I have permissions.", ephemeral: true });
+    }
   }
 });
 
