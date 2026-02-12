@@ -51,7 +51,6 @@ const COOLDOWN_TIME = 20000;
 client.on("messageCreate", async (message) => {
   if (!message.guild || message.author.bot) return;
 
-  // Only owner can use prefix commands
   const isOwner = message.author.id === ownerId;
 
   // ===== BAD WORD FILTER =====
@@ -83,11 +82,30 @@ client.on("messageCreate", async (message) => {
     const args = message.content.slice(PREFIX.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
+    // ==== SAY COMMAND ====
     if (command === "say") {
       const text = args.join(" ");
       if (!text) return;
       await message.delete().catch(() => {});
       message.channel.send(text);
+    }
+
+    // ==== SPAM COMMAND ====
+    if (command === "spam") {
+      // Usage: !spam <count> <delay(ms)> <message>
+      const count = parseInt(args[0]);
+      const delay = parseInt(args[1]);
+      const spamMessage = args.slice(2).join(" ");
+
+      if (!count || count <= 0 || !delay || delay < 0 || !spamMessage) {
+        return message.channel.send("Usage: `!spam <count> <delay(ms)> <message>`");
+      }
+
+      await message.delete().catch(() => {});
+      for (let i = 0; i < count; i++) {
+        message.channel.send(spamMessage);
+        await new Promise(res => setTimeout(res, delay));
+      }
     }
   }
 });
@@ -230,7 +248,6 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  // Only owner can use slash commands
   if (interaction.user.id !== ownerId)
     return interaction.reply({ content: "❌ Only bot owner can use commands.", ephemeral: true });
 
