@@ -241,6 +241,7 @@ client.on("interactionCreate", async (interaction) => {
     catch { return interaction.reply({ content: "❌ Couldn't move member", ephemeral: true }); }
   }
 
+  // ================= SPAM COMMAND UPDATED =================
   if (command === "spam") {
     const text = interaction.options.getString("message");
     const count = interaction.options.getInteger("count");
@@ -250,8 +251,15 @@ client.on("interactionCreate", async (interaction) => {
     else if (delayInput.endsWith("m")) delayMs = parseInt(delayInput)*60000;
     else if (delayInput.endsWith("h")) delayMs = parseInt(delayInput)*3600000;
     else return interaction.reply("❌ Invalid delay format. Use 3s, 5m, 1h");
-    interaction.reply(`⏳ Starting spam of ${count} messages`);
-    for (let i=0;i<count;i++){ setTimeout(()=>{ interaction.channel.send(text); }, delayMs*i);}
+
+    // Delete user's original command
+    try { await interaction.delete(); } catch {}
+
+    // Start spamming
+    interaction.channel.send(`⏳ Starting spam of ${count} messages`);
+    for (let i=0;i<count;i++){
+      setTimeout(()=>{ interaction.channel.send(text); }, delayMs*i);
+    }
   }
 
   if (command === "give") {
