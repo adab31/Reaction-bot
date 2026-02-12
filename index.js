@@ -27,10 +27,10 @@ const client = new Client({
 });
 
 // ================= SETTINGS =================
-const ownerId = "YOUR_USER_ID";
-const guildId = "YOUR_GUILD_ID";
-const notificationChannelId = "YOUR_WELCOME_CHANNEL_ID";
-const autoRoleId = "YOUR_AUTOROLE_ID";
+const ownerId = "1414100097590890588";
+const guildId = "1464580639620727030";
+const notificationChannelId = "1464603388196032626";
+const autoRoleId = "1464585250964242494";
 
 let reactEnabled = true;
 
