@@ -92,12 +92,23 @@ client.on("messageCreate", async (message) => {
     // ==== SPAM COMMAND (prefix) ====
     if (command === "spam") {
       const count = parseInt(args[0]);
-      const delay = parseInt(args[1]);
+      let delayInput = args[1];
       const spamMessage = args.slice(2).join(" ");
 
-      if (!count || count <= 0 || !delay || delay < 0 || !spamMessage) {
-        return message.channel.send("Usage: `!spam <count> <delay(ms)> <message>`");
+      if (!count || count <= 0 || !delayInput || !spamMessage) {
+        return message.channel.send("Usage: `!spam <count> <delay> <message>` (e.g., 5 3s Hello)");
       }
+
+      // Parse delay string
+      let delay = 0;
+      const match = delayInput.match(/^(\d+)(s|m|h)?$/i);
+      if (!match) return message.channel.send("❌ Invalid delay format. Use 3s, 5m, 1h, or number in ms.");
+      const num = parseInt(match[1]);
+      const unit = match[2]?.toLowerCase() || "ms";
+      if (unit === "s") delay = num * 1000;
+      else if (unit === "m") delay = num * 60 * 1000;
+      else if (unit === "h") delay = num * 60 * 60 * 1000;
+      else delay = num;
 
       await message.delete().catch(() => {});
 
@@ -194,12 +205,11 @@ const commands = [
     .setName("spam")
     .setDescription("Spam a message (owner only)")
     .addIntegerOption(option => option.setName("count").setDescription("Number of messages").setRequired(true))
-    .addIntegerOption(option => option.setName("delay").setDescription("Delay in ms between messages").setRequired(true))
+    .addStringOption(option => option.setName("delay").setDescription("Delay (e.g., 3s, 5m, 1h)").setRequired(true))
     .addStringOption(option => option.setName("message").setDescription("Message to spam").setRequired(true))
 ];
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-
 (async () => {
   await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
   console.log("Slash commands registered ✅");
@@ -208,7 +218,6 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 // ================= INTERACTION HANDLER =================
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-
   if (interaction.user.id !== ownerId)
     return interaction.reply({ content: "❌ Only bot owner can use commands.", ephemeral: true });
 
@@ -259,12 +268,24 @@ client.on("interactionCreate", async (interaction) => {
   // ================= /SPAM SLASH COMMAND =================
   if (commandName === "spam") {
     const count = interaction.options.getInteger("count");
-    const delay = interaction.options.getInteger("delay");
+    let delayInput = interaction.options.getString("delay");
     const spamMessage = interaction.options.getString("message");
 
-    await interaction.reply({ content: `Spamming ${count} messages...`, ephemeral: true });
+    // ===== parse delay =====
+    let delay = 0;
+    const match = delayInput.match(/^(\d+)(s|m|h)?$/i);
+    if (!match) return interaction.reply({ content: "❌ Invalid delay format. Use 3s, 5m, 1h, or number in ms.", ephemeral: true });
 
-    for (let i=0; i<count; i++) {
+    const num = parseInt(match[1]);
+    const unit = match[2]?.toLowerCase() || "ms";
+    if (unit === "s") delay = num * 1000;
+    else if (unit === "m") delay = num * 60 * 1000;
+    else if (unit === "h") delay = num * 60 * 60 * 1000;
+    else delay = num;
+
+    await interaction.reply({ content: `Spamming ${count} messages with ${delayInput} delay...`, ephemeral: true });
+
+    for (let i = 0; i < count; i++) {
       interaction.channel.send(spamMessage);
       await new Promise(res => setTimeout(res, delay));
     }
