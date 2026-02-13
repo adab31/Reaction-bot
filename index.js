@@ -174,7 +174,7 @@ const commands = [
   new SlashCommandBuilder().setName("revoke").setDescription("Revoke command permission")
     .addUserOption(opt => opt.setName("user").setDescription("User").setRequired(true))
     .addStringOption(opt => opt.setName("command").setDescription("Command name").setRequired(true)),
-  new SlashCommandBuilder().setName("help").setDescription("Show available commands")
+  new SlashCommandBuilder().setName("help").setDescription("Show available commands"),
   new SlashCommandBuilder()
   .setName("say")
   .setDescription("Send anonymous message")
