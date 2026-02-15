@@ -1,7 +1,10 @@
 require("dotenv").config();
 const fs = require("fs");
-const { Client, GatewayIntentBits, SlashCommandBuilder, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const express = require("express");
+const {
+  Client, GatewayIntentBits, SlashCommandBuilder, REST, Routes,
+  EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
+} = require("discord.js");
 
 // ================= EXPRESS =================
 const app = express();
@@ -20,7 +23,7 @@ const client = new Client({
 });
 
 // ================= SETTINGS =================
-const ownerIds = ["1414100097590890588", "1452326637604573376"];
+const ownerIds = ["1414100097590890588","1452326637604573376"];
 const notificationChannelId = "1464603388196032626";
 const autoRoleId = "1464585250964242494";
 
@@ -151,66 +154,81 @@ const rest = new REST({version:"10"}).setToken(process.env.TOKEN);
 client.on("interactionCreate", async(interaction)=>{
   if(!interaction.isChatInputCommand() && !interaction.isButton()) return;
 
-  // ========== BUTTON HANDLER ==========
+  // BUTTON HANDLER
   if(interaction.isButton()){
     const [action,type,targetId] = interaction.customId.split("_");
-    if(!ownerIds.includes(interaction.user.id)) return interaction.reply({content:"❌ You can't click this button.",ephemeral:true});
     const member = await interaction.guild.members.fetch(targetId).catch(()=>null);
     if(!member) return interaction.update({content:"❌ User not found.",embeds:[],components:[]});
+    if(!ownerIds.includes(interaction.user.id)) return interaction.reply({content:"❌ Not allowed.",ephemeral:true});
 
-    if(action==="kick" && type==="confirm"){ await member.kick().catch(()=>{}); return interaction.update({embeds:[new EmbedBuilder().setColor("Red").setTitle("✅ User Kicked").setDescription(member.user.tag).setTimestamp()],components:[]}); }
-    if(action==="kick" && type==="cancel"){ return interaction.update({embeds:[new EmbedBuilder().setColor("Green").setTitle("❌ Kick Cancelled").setDescription(member.user.tag).setTimestamp()],components:[]}); }
-
-    if(action==="ban" && type==="confirm"){ await member.ban().catch(()=>{}); return interaction.update({embeds:[new EmbedBuilder().setColor("Red").setTitle("✅ User Banned").setDescription(member.user.tag).setTimestamp()],components:[]}); }
-    if(action==="ban" && type==="cancel"){ return interaction.update({embeds:[new EmbedBuilder().setColor("Green").setTitle("❌ Ban Cancelled").setDescription(member.user.tag).setTimestamp()],components:[]}); }
-
-    if(action==="warn" && type==="confirm"){ await member.send("⚠ You were warned.").catch(()=>{}); return interaction.update({embeds:[new EmbedBuilder().setColor("Yellow").setTitle("⚠ User Warned").setDescription(member.user.tag).setTimestamp()],components:[]}); }
-    if(action==="warn" && type==="cancel"){ return interaction.update({embeds:[new EmbedBuilder().setColor("Green").setTitle("❌ Warn Cancelled").setDescription(member.user.tag).setTimestamp()],components:[]}); }
-
-    if(action==="timeout" && type==="confirm"){ await member.timeout(5*60*1000).catch(()=>{}); return interaction.update({embeds:[new EmbedBuilder().setColor("Red").setTitle("⏳ User Timed Out").setDescription(member.user.tag).setTimestamp()],components:[]}); }
-    if(action==="timeout" && type==="cancel"){ return interaction.update({embeds:[new EmbedBuilder().setColor("Green").setTitle("❌ Timeout Cancelled").setDescription(member.user.tag).setTimestamp()],components:[]}); }
-    return;
+    const embed = new EmbedBuilder().setTimestamp();
+    if(action==="kick"){ 
+      if(type==="confirm"){ await member.kick().catch(()=>{}); embed.setColor("Red").setTitle("✅ User Kicked").setDescription(member.user.tag); }
+      else { embed.setColor("Green").setTitle("❌ Kick Cancelled").setDescription(member.user.tag); }
+    }
+    if(action==="ban"){ 
+      if(type==="confirm"){ await member.ban().catch(()=>{}); embed.setColor("Red").setTitle("✅ User Banned").setDescription(member.user.tag); }
+      else { embed.setColor("Green").setTitle("❌ Ban Cancelled").setDescription(member.user.tag); }
+    }
+    if(action==="warn"){ 
+      if(type==="confirm"){ await member.send("⚠ You were warned.").catch(()=>{}); embed.setColor("Yellow").setTitle("⚠ User Warned").setDescription(member.user.tag); }
+      else { embed.setColor("Green").setTitle("❌ Warn Cancelled").setDescription(member.user.tag); }
+    }
+    if(action==="timeout"){ 
+      if(type==="confirm"){ await member.timeout(5*60*1000).catch(()=>{}); embed.setColor("Red").setTitle("⏳ User Timed Out").setDescription(member.user.tag); }
+      else { embed.setColor("Green").setTitle("❌ Timeout Cancelled").setDescription(member.user.tag); }
+    }
+    return interaction.update({embeds:[embed],components:[]});
   }
 
-  // ========== SLASH COMMAND HANDLER ==========
+  // SLASH COMMAND HANDLER
   const command = interaction.commandName;
   const userId = interaction.user.id;
   const isOwner = ownerIds.includes(userId);
   const hasPermission = isOwner || (commandPermissions[command]?.includes(userId));
   if(!hasPermission && !["help"].includes(command)) return interaction.reply({content:"❌ You don't have permission.",ephemeral:true});
 
-  // ========== HELP ==========
+  // HELP
   if(command==="help"){
     const allowed = isOwner ? allCommandsList : allCommandsList.filter(c=>commandPermissions[c]?.includes(userId));
-    const embed = new EmbedBuilder()
-      .setColor("Blue")
-      .setTitle("📜 Available Commands")
-      .setDescription(allowed.map(c=>`/${c}`).join("\n"))
-      .setTimestamp();
+    const embed = new EmbedBuilder().setColor("Blue").setTitle("📜 Available Commands").setDescription(allowed.map(c=>`/${c}`).join("\n")).setTimestamp();
     return interaction.reply({embeds:[embed],ephemeral:true});
   }
 
-  // ========== PING ==========
-  if(command==="ping"){
-    const embed = new EmbedBuilder()
-      .setColor("Yellow")
-      .setTitle("🏓 Pong!")
-      .setDescription(`Latency: ${client.ws.ping}ms`)
-      .setTimestamp();
-    return interaction.reply({embeds:[embed]});
+  // PING
+  if(command==="ping"){ return interaction.reply({embeds:[new EmbedBuilder().setColor("Yellow").setTitle("🏓 Pong!").setDescription(`Latency: ${client.ws.ping}ms`).setTimestamp()]}); }
+
+  // MEMBERS
+  if(command==="members"){ return interaction.reply({embeds:[new EmbedBuilder().setColor("Green").setTitle("👥 Members").setDescription(`Total: ${interaction.guild.memberCount}`).setTimestamp()]}); }
+
+  // SAY - Anonymous
+  if(command==="say"){
+    const text = interaction.options.getString("text");
+    await interaction.reply({content:"✅ Message sent anonymously",ephemeral:true});
+    const webhook = await interaction.channel.createWebhook({name:client.user.username,avatar:client.user.displayAvatarURL()});
+    await webhook.send({content:text,username:"Server",avatarURL:client.user.displayAvatarURL()});
+    webhook.delete().catch(()=>{});
   }
 
-  // ========== MEMBERS ==========
-  if(command==="members"){
-    const embed = new EmbedBuilder()
-      .setColor("Green")
-      .setTitle("👥 Member Count")
-      .setDescription(`Total Members: ${interaction.guild.memberCount}`)
-      .setTimestamp();
-    return interaction.reply({embeds:[embed]});
+  // SPAM - Anonymous
+  if(command==="spam"){
+    const text = interaction.options.getString("message");
+    const count = interaction.options.getInteger("count");
+    const delayInput = interaction.options.getString("delay").toLowerCase();
+    let delayMs = 0;
+    if(delayInput.endsWith("s")) delayMs = parseInt(delayInput)*1000;
+    else if(delayInput.endsWith("m")) delayMs = parseInt(delayInput)*60000;
+    else if(delayInput.endsWith("h")) delayMs = parseInt(delayInput)*3600000;
+    else return interaction.reply({content:"❌ Invalid delay. Use 3s,5m,1h",ephemeral:true});
+
+    await interaction.reply({content:`✅ Anonymous spam started (${count} messages every ${delayInput})`,ephemeral:true});
+    const webhook = await interaction.channel.createWebhook({name:client.user.username,avatar:client.user.displayAvatarURL()});
+    const spamEmbed = new EmbedBuilder().setColor("Blue").setTitle("💬 Anonymous Spam").setDescription(text).setTimestamp();
+    for(let i=0;i<count;i++){ setTimeout(()=>{webhook.send({embeds:[spamEmbed]});},delayMs*i); }
+    setTimeout(()=>{ webhook.delete().catch(()=>{}); },delayMs*count+5000);
   }
 
-  // ... Rest of commands like snipe, say, spam handled with embeds (same as previous full code) ...
+  // Other moderation / permission commands can be added similarly with GUI
 });
 
 // ================= READY =================
