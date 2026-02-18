@@ -24,7 +24,8 @@ const client = new Client({
 
 // ================= SETTINGS =================
 const ownerIds = ["1414100097590890588","1452326637604573376"];
-const notificationChannelId = "1464603388196032626", "1473573033968013384";
+const notificationChannelId = "1464603388196032626";
+const notificationChannelId = "1473573033968013384";
 const autoRoleId = "1464585250964242494", "1473585557736001638";
 
 let reactEnabled = true;
