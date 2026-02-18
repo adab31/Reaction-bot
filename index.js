@@ -23,9 +23,20 @@ const client = new Client({
 });
 
 // ================= SETTINGS =================
+// ================= SETTINGS =================
 const ownerIds = ["1414100097590890588","1452326637604573376"];
-const notificationChannelId = "1464603388196032626", "1473573033968013384";
-const autoRoleId = "1464585250964242494", "1473585557736001638";
+
+// ✅ Multiple notification channels
+const notificationChannelIds = [
+  "1464603388196032626",
+  "1473573033968013384"
+];
+
+// ✅ Multiple auto roles
+const autoRoleIds = [
+  "1464585250964242494",
+  "1473585557736001638"
+];
 
 let reactEnabled = true;
 const userReactions = {
@@ -70,30 +81,44 @@ client.on("messageDelete",(message)=>{
 
 // ================= MEMBER JOIN/LEAVE =================
 client.on("guildMemberAdd", async(member)=>{
-  const ch = member.guild.channels.cache.get(notificationChannelId);
-  if(ch){
+
+  // SEND JOIN MESSAGE IN ALL CHANNELS
+  notificationChannelIds.forEach(id=>{
+    const ch = member.guild.channels.cache.get(id);
+    if(!ch) return;
+
     const embed = new EmbedBuilder()
       .setColor("Green")
       .setTitle("🎉 New Member Joined")
       .setDescription(`${member.user.tag} joined the server!`)
       .setTimestamp();
-    ch.send({embeds:[embed]});
-  }
-  const role = member.guild.roles.cache.get(autoRoleId);
-  if(role) await member.roles.add(role).catch(()=>{});
+
+    ch.send({embeds:[embed]}).catch(()=>{});
+  });
+
+  // GIVE ALL AUTO ROLES
+  autoRoleIds.forEach(roleId=>{
+    const role = member.guild.roles.cache.get(roleId);
+    if(role) member.roles.add(role).catch(()=>{});
+  });
+
 });
 client.on("guildMemberRemove",(member)=>{
-  const ch = member.guild.channels.cache.get(notificationChannelId);
-  if(ch){
+
+  notificationChannelIds.forEach(id=>{
+    const ch = member.guild.channels.cache.get(id);
+    if(!ch) return;
+
     const embed = new EmbedBuilder()
       .setColor("Red")
       .setTitle("👋 Member Left")
       .setDescription(`${member.user.tag} left the server.`)
       .setTimestamp();
-    ch.send({embeds:[embed]});
-  }
-});
 
+    ch.send({embeds:[embed]}).catch(()=>{});
+  });
+
+});
 // ================= SLASH COMMANDS =================
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check bot latency"),
